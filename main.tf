@@ -1,16 +1,16 @@
 provider "aws" {
-  region = var.aws_region
+  region = "us-east-1"
 }
 
 # 1. Crear la VPC
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
   tags = {
-    Name = "luisberrio-vpc"
+    Name = "main-vpc"
   }
 }
 
-# 2. Crear Internet Gateway para las subredes públicas
+# 2. Crear Internet Gateway
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
   tags = {
@@ -18,7 +18,7 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-# 3. Crear tablas de enrutamiento
+# 3. Tabla de enrutamiento pública
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.main.id
   route {
@@ -30,6 +30,7 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
+# 4. Tabla de enrutamiento privada
 resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.main.id
   tags = {
@@ -37,7 +38,7 @@ resource "aws_route_table" "private_rt" {
   }
 }
 
-# 4. Crear subredes públicas
+# 5. Subredes públicas
 resource "aws_subnet" "public_1" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.1.0/24"
@@ -58,7 +59,7 @@ resource "aws_subnet" "public_2" {
   }
 }
 
-# 5. Crear subredes privadas
+# 6. Subredes privadas
 resource "aws_subnet" "private_1" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.3.0/24"
@@ -77,7 +78,7 @@ resource "aws_subnet" "private_2" {
   }
 }
 
-# 6. Asociar las subredes públicas con la tabla de enrutamiento pública
+# 7. Asociaciones de tabla de enrutamiento pública
 resource "aws_route_table_association" "public_1_assoc" {
   subnet_id      = aws_subnet.public_1.id
   route_table_id = aws_route_table.public_rt.id
@@ -88,9 +89,8 @@ resource "aws_route_table_association" "public_2_assoc" {
   route_table_id = aws_route_table.public_rt.id
 }
 
-# 7. Crear NAT Gateway para las subredes privadas
+# 8. Crear NAT Gateway para subredes privadas
 resource "aws_eip" "nat_eip" {
-  # Se ha quitado el "vpc = true" que estaba deprecado
   tags = {
     Name = "nat-eip"
   }
@@ -104,14 +104,14 @@ resource "aws_nat_gateway" "nat" {
   }
 }
 
-# 8. Crear ruta para las subredes privadas hacia el NAT Gateway
+# 9. Crear ruta NAT para las subredes privadas
 resource "aws_route" "private_nat_route" {
   route_table_id         = aws_route_table.private_rt.id
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = aws_nat_gateway.nat.id
 }
 
-# 9. Asociar las subredes privadas con la tabla de enrutamiento privada
+# 10. Asociaciones de tabla de enrutamiento privada
 resource "aws_route_table_association" "private_1_assoc" {
   subnet_id      = aws_subnet.private_1.id
   route_table_id = aws_route_table.private_rt.id
